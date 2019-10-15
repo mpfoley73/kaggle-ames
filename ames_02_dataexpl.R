@@ -16,17 +16,36 @@
 #+ setup, message = FALSE, warning = FALSE
 library(tidyverse)
 library(gridExtra)
+library(caret)  # for nearZeroVar()
 
 #' # Load Data
 d <- readRDS(file = "./ames_01.RDS")
 
 
 #' # Univariate Analysis
-#' In this section I will look at data distribution in each variable
 #' 
-col_is_factor <- lapply(d, function(x) class(x)[1]) %in% c("ordered", "factor")
+#' In this section I will look at data distribution in each variable. For factor
+#' variables, I am interested in which are near-zero-variance predictors.  I won't
+#' remove them here, but I might remove them in the modeling pre-process step if
+#' they cause zero-variance in cv folds (see discussion 
+#' [here](https://www.r-bloggers.com/near-zero-variance-predictors-should-we-remove-them/)).
+#' `caret` has a nice function to identify near-zero variance predictors.  It defines near-zero variance
+#' as a frequency ratio (ratio of the most common value frequency to the second most common 
+#' value frequency) >= 19 and a percent of unique values <= 10%. (see [caret package 
+#' documentation](https://topepo.github.io/caret/index.html)).
+#' (DataCamp course [Machine Learning Toolbox](https://campus.datacamp.com/courses/machine-learning-toolbox/preprocessing-your-data?ex=13))
+#' suggests being more aggressive and setting thresholds of frequency ratio >= 2 and percent
+#' of unique values <= 20%.
 
-plot_bar <- function(col_name) {
+col_is_factor <- lapply(d, function(x) class(x)[1]) %in% c("ordered", "factor")
+(nzv <- nearZeroVar(d[, col_is_factor], 
+            saveMetrics= TRUE,
+            freqCut = 2, uniqueCut = 20))
+
+#' THere are `r = nrow(nzv[nzv$nzv == TRUE])`
+
+
+myBarPlot <- function(col_name) {
   # So you can pass col_name as a string or symbol
   col_name <- enexpr(col_name)
   if(!is.symbol(col_name)) col_name <- sym(col_name)
@@ -41,7 +60,7 @@ plot_bar <- function(col_name) {
     theme(legend.position = "none")
 }
 
-plot_bar("BldgType")
+myBarPlot("BldgType")
 
 skimr::skim_to_wide(d[, col_is_factor])
 
