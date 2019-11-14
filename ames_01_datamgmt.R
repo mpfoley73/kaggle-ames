@@ -38,8 +38,8 @@ library(mice)
 # "NA" is an actual data label - only allow empty string "" for `NA`
 d.train <- read_csv("./train.csv", na = c("")) %>% mutate(Set = "train")
 d.train <- rename(d.train, !!c(X1stFlrSF = "1stFlrSF",
-                             X2ndFlrSF = "2ndFlrSF",
-                             X3SsnPorch = "3SsnPorch"))
+                               X2ndFlrSF = "2ndFlrSF",
+                               X3SsnPorch = "3SsnPorch"))
 d.test <- read_csv("./test.csv", na = c("")) %>% mutate(SalePrice = NA, Set = "test")
 d.test <- rename(d.test, !!c(X1stFlrSF = "1stFlrSF",
                              X2ndFlrSF = "2ndFlrSF",
@@ -117,10 +117,10 @@ UF.levels <- list(
 #' I'll look at each feature and adjust the data type and/or factor levels as necessary so that the data is reconciled with the codebook.
 #' 
 
-d$Id <- as.integer(d$Id)
-d$SalePrice <- as.integer(d$SalePrice)
+d$Id <- as.numeric(d$Id)
+d$SalePrice <- as.numeric(d$SalePrice)
 d$Alley <- parse_factor(d$Alley, levels = UF.levels$Alley)
-d$BedroomAbvGr <- as.integer(d$BedroomAbvGr)
+d$BedroomAbvGr <- as.numeric(d$BedroomAbvGr)
 
 #' BldgType levels do not match values in data description file.
 #' Doesn't look like typos - the data codebook just does not match.
@@ -133,14 +133,14 @@ d$BldgType <- parse_factor(d$BldgType, levels = UF.levels$BldgType)
 #+ warning=FALSE
 d$BsmtCond <- parse_factor(d$BsmtCond, levels = OF.levels$BsmtCond) %>% fct_explicit_na("NA")
 d$BsmtExposure <- parse_factor(d$BsmtExposure, levels = OF.levels$BsmtExposure, ordered = T)
-d$BsmtFinSF1 <- as.integer(d$BsmtFinSF1)
-d$BsmtFinSF2 <- as.integer(d$BsmtFinSF2)
+d$BsmtFinSF1 <- as.numeric(d$BsmtFinSF1)
+d$BsmtFinSF2 <- as.numeric(d$BsmtFinSF2)
 d$BsmtFinType1 <- parse_factor(d$BsmtFinType1, levels = OF.levels$BsmtFinType1, ordered = T)
 d$BsmtFinType2 <- parse_factor(d$BsmtFinType2, levels = OF.levels$BsmtFinType2, ordered = T)
-d$BsmtFullBath <- as.integer(d$BsmtFullBath)
-d$BsmtHalfBath <- as.integer(d$BsmtHalfBath)
+d$BsmtFullBath <- as.numeric(d$BsmtFullBath)
+d$BsmtHalfBath <- as.numeric(d$BsmtHalfBath)
 d$BsmtQual <- parse_factor(d$BsmtQual, levels = OF.levels$BsmtQual, ordered = T) %>% fct_explicit_na("NA")
-d$BsmtUnfSF <- as.integer(d$BsmtUnfSF)
+d$BsmtUnfSF <- as.numeric(d$BsmtUnfSF)
 d$CentralAir <- parse_factor(d$CentralAir, levels = UF.levels$CentralAir)
 d$Condition1 <- parse_factor(d$Condition1, levels = UF.levels$Condition1)
 d$Condition2 <- parse_factor(d$Condition2, levels = UF.levels$Condition2)
@@ -150,7 +150,7 @@ d$Electrical <- ifelse(d$Electrical == "NA", NA, d$Electrical)
 d$Electrical <- parse_factor(d$Electrical, levels = OF.levels$Electrical, ordered = T, include_na = F)
 
 #'
-d$EnclosedPorch <- as.integer(d$EnclosedPorch)
+d$EnclosedPorch <- as.numeric(d$EnclosedPorch)
 d$ExterCond <- parse_factor(d$ExterCond, levels = OF.levels$ExterCond, ordered = T)
 
 #' `Exterior1st` includes `NA`s coded as "NA". 
@@ -170,9 +170,9 @@ d$Exterior2nd <- parse_factor(d$Exterior2nd, levels = UF.levels$Exterior2nd, inc
 d$ExterQual <- parse_factor(d$ExterQual, levels = OF.levels$ExterQual, ordered = T)
 d$Fence <- parse_factor(d$Fence, levels = OF.levels$Fence, ordered = T) %>% fct_explicit_na("NF")
 d$FireplaceQu <- parse_factor(d$FireplaceQu, levels = OF.levels$FireplaceQu, ordered = T)
-d$Fireplaces <- as.integer(d$Fireplaces)
+d$Fireplaces <- as.numeric(d$Fireplaces)
 d$Foundation <- parse_factor(d$Foundation, levels = UF.levels$Foundation)
-d$FullBath <- as.integer(d$FullBath)
+d$FullBath <- as.numeric(d$FullBath)
 
 #' `Functional` includes `NA`s coded as "NA". 
 d$Functional <- ifelse(d$Functional == "NA", NA, d$Functional)
@@ -180,19 +180,19 @@ d$Functional <- parse_factor(d$Functional, levels = OF.levels$Functional, ordere
 
 #'
 #+ warning=FALSE
-d$GarageArea <- as.integer(d$GarageArea)
-d$GarageCars <- as.integer(d$GarageCars)
+d$GarageArea <- as.numeric(d$GarageArea)
+d$GarageCars <- as.numeric(d$GarageCars)
 d$GarageCond <- parse_factor(d$GarageCond, levels = OF.levels$GarageCond, ordered = T)
 d$GarageFinish <- parse_factor(d$GarageFinish, levels = OF.levels$GarageFinish, ordered = T)
 d$GarageQual <- parse_factor(d$GarageQual, levels = OF.levels$GarageQual, ordered = T)
 d$GarageType <- parse_factor(d$GarageType, levels = UF.levels$GarageType)
-d$GarageYrBlt <- as.integer(d$GarageYrBlt)
-d$GrLivArea <- as.integer(d$GrLivArea)
-d$HalfBath <- as.integer(d$HalfBath)
+d$GarageYrBlt <- as.numeric(d$GarageYrBlt)
+d$GrLivArea <- as.numeric(d$GrLivArea)
+d$HalfBath <- as.numeric(d$HalfBath)
 d$Heating <- parse_factor(d$Heating, levels = UF.levels$Heating)
 d$HeatingQC <- parse_factor(d$HeatingQC, levels = OF.levels$HeatingQC, ordered = T)
 d$HouseStyle <- parse_factor(d$HouseStyle, levels = UF.levels$HouseStyle)
-d$KitchenAbvGr <- as.integer(d$KitchenAbvGr)
+d$KitchenAbvGr <- as.numeric(d$KitchenAbvGr)
 
 #' `KitchenQual` includes `NA`s coded as "NA". 
 d$KitchenQual <- ifelse(d$KitchenQual == "NA", NA, d$KitchenQual)
@@ -202,12 +202,12 @@ d$KitchenQual <- parse_factor(d$KitchenQual, levels = OF.levels$KitchenQual, ord
 #+ warning=FALSE
 d$LandContour <- parse_factor(d$LandContour, levels = UF.levels$LandContour)
 d$LandSlope <- parse_factor(d$LandSlope, levels = UF.levels$LandSlope)
-d$LotArea <- as.integer(d$LotArea)
+d$LotArea <- as.numeric(d$LotArea)
 d$LotConfig <- parse_factor(d$LotConfig, levels = UF.levels$LotConfig)
-d$LotFrontage <- as.integer(d$LotFrontage)
+d$LotFrontage <- as.numeric(d$LotFrontage)
 d$LotShape <- parse_factor(d$LotShape, levels = UF.levels$LotShape)
-d$LowQualFinSF <- as.integer(d$LowQualFinSF)
-d$MasVnrArea <- as.integer(d$MasVnrArea)
+d$LowQualFinSF <- as.numeric(d$LowQualFinSF)
+d$MasVnrArea <- as.numeric(d$MasVnrArea)
 
 #' `MasVnrType` includes `NA`s coded as "NA". 
 d$MasVnrType <- ifelse(d$MasVnrType == "NA", NA, d$MasVnrType)
@@ -215,7 +215,7 @@ d$MasVnrType <- parse_factor(d$MasVnrType, levels = UF.levels$MasVnrType, includ
 
 #'
 d$MiscFeature <- parse_factor(d$MiscFeature, levels = UF.levels$MiscFeature) %>% fct_explicit_na("None")
-d$MiscVal <- as.integer(d$MiscVal)
+d$MiscVal <- as.numeric(d$MiscVal)
 d$MoSold <- parse_factor(as.character(d$MoSold), levels = UF.levels$MoSold)
 d$MSSubClass <- parse_factor(as.character(d$MSSubClass), levels = UF.levels$MSSubClass)
 
@@ -229,11 +229,11 @@ UF.levels$Neighborhood[UF.levels$Neighborhood == "Names"] <- "NAmes"
 d$Neighborhood <- parse_factor(d$Neighborhood, levels = UF.levels$Neighborhood)
 
 #'
-d$OpenPorchSF <- as.integer(d$OpenPorchSF)
+d$OpenPorchSF <- as.numeric(d$OpenPorchSF)
 d$OverallCond <- parse_factor(as.character(d$OverallCond), levels = OF.levels$OverallCond, ordered = T)
 d$OverallQual <- parse_factor(as.character(d$OverallQual), levels = OF.levels$OverallQual, ordered = T)
 d$PavedDrive <- parse_factor(d$PavedDrive, levels = UF.levels$PavedDrive)
-d$PoolArea <- as.integer(d$PoolArea)
+d$PoolArea <- as.numeric(d$PoolArea)
 d$PoolQC <- parse_factor(d$PoolQC, levels = OF.levels$PoolQC, ordered = T) %>% fct_explicit_na("NP")
 d$RoofMatl <- parse_factor(d$RoofMatl, levels = UF.levels$RoofMatl)
 d$RoofStyle <- parse_factor(d$RoofStyle, levels = UF.levels$RoofStyle)
@@ -245,30 +245,30 @@ d$SaleType <- parse_factor(d$SaleType, levels = UF.levels$SaleType, include_na =
 
 #'
 #+ warning=FALSE
-d$ScreenPorch <- as.integer(d$ScreenPorch)
+d$ScreenPorch <- as.numeric(d$ScreenPorch)
 d$Street <- parse_factor(d$Street, levels = UF.levels$Street)
-d$TotalBsmtSF <- as.integer(d$TotalBsmtSF)
-d$TotRmsAbvGrd <- as.integer(d$TotRmsAbvGrd)
+d$TotalBsmtSF <- as.numeric(d$TotalBsmtSF)
+d$TotRmsAbvGrd <- as.numeric(d$TotRmsAbvGrd)
 
 #' `Utilities` includes `NA`s coded as "NA". 
 d$Utilities <- ifelse(d$Utilities == "NA", NA, d$Utilities)
 d$Utilities <- parse_factor(d$Utilities, levels = UF.levels$Utilities, include_na = F)
 
 #'
-d$WoodDeckSF <- as.integer(d$WoodDeckSF)
-d$X1stFlrSF <- as.integer(d$X1stFlrSF)
-d$X2ndFlrSF <- as.integer(d$X2ndFlrSF)
-d$X3SsnPorch <- as.integer(d$X3SsnPorch)
-d$YearBuilt <- as.integer(d$YearBuilt)
-d$YearRemodAdd <- as.integer(d$YearRemodAdd)
-d$YrSold <- as.integer(d$YrSold)
+d$WoodDeckSF <- as.numeric(d$WoodDeckSF)
+d$X1stFlrSF <- as.numeric(d$X1stFlrSF)
+d$X2ndFlrSF <- as.numeric(d$X2ndFlrSF)
+d$X3SsnPorch <- as.numeric(d$X3SsnPorch)
+d$YearBuilt <- as.numeric(d$YearBuilt)
+d$YearRemodAdd <- as.numeric(d$YearRemodAdd)
+d$YrSold <- as.numeric(d$YrSold)
 
 #' How does it look?
-skimr::skim_to_wide(d)[, c(1:3, 6:7, 9, 14, 16, 18, 19)] %>% knitr::kable()
+skimr::skim_to_wide(d)[, c(1:3, 9, 14, 16, 18, 19)] %>% knitr::kable()
 
 #' Factors and numerics are accounted for correctly.  But there are some data issues to address
 #' in the next section.
-
+#'
 #' # Manage Data
 
 #' Now that the data is reconciled with the codebook, I will address data structure issues, correct obvious
@@ -353,7 +353,7 @@ d$MasVnrType <- parse_factor(d$MasVnrType, levels = UF.levels$MasVnrType)
 idx <- which(is.na(d$GarageArea) & is.na(d$GarageCars) & is.na(d$GarageYrBlt))
 d[idx, "GarageArea"] <- 0
 d[idx, "GarageCars"] <- 0
-d[idx, "GarageYrBlt"] <- 0
+d[idx, "GarageYrBlt"] <- min(d$GarageYrBlt, na.rm = TRUE)
 rm(idx)
 
 #' `GarageYrBlt` is `NA` in 159 observations.  Is this situation similar to `NA` basement vars?
@@ -364,9 +364,9 @@ skimr::skim_to_wide(d[is.na(d$GarageYrBlt),
 #' oldest year in the data set under the logic that no garage is about as valuable as the oldest 
 #' possible garage.
 d$GarageYrBlt <- case_when(is.na(d$GarageYrBlt) & d$GarageArea == 0 & d$GarageCars == 0 &
-                            d$GarageCond == "NA" & d$GarageFinish == "NA" & d$GarageQual == "NA" &
-                            d$GarageType == "NA" ~ min(d$GarageYrBlt, na.rm = TRUE),
-                          TRUE ~ d$GarageYrBlt)
+                             d$GarageCond == "NA" & d$GarageFinish == "NA" & d$GarageQual == "NA" &
+                             d$GarageType == "NA" ~ min(d$GarageYrBlt, na.rm = TRUE),
+                           TRUE ~ d$GarageYrBlt)
 
 #' Check the pattern one more time. 
 #+ fig.height = 12
