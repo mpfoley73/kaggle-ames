@@ -15,7 +15,7 @@
 #' I will try linear regression with ols, and stepwise, regularization with 
 #' ridge, lasso, and elastic net, and decision trees with boosting, random 
 #' forest, and gradient descent.  
-
+#'
 #' # Setup
 
 #+ echo = FALSE
