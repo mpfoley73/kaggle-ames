@@ -131,15 +131,15 @@ d$BldgType <- parse_factor(d$BldgType, levels = UF.levels$BldgType)
 
 #'
 #+ warning=FALSE
-d$BsmtCond <- parse_factor(d$BsmtCond, levels = OF.levels$BsmtCond) %>% fct_explicit_na("NA")
-d$BsmtExposure <- parse_factor(d$BsmtExposure, levels = OF.levels$BsmtExposure, ordered = T)
+d$BsmtCond <- parse_factor(d$BsmtCond, levels = OF.levels$BsmtCond, ordered = TRUE) %>% fct_explicit_na("NA")
+d$BsmtExposure <- parse_factor(d$BsmtExposure, levels = OF.levels$BsmtExposure, ordered = TRUE)
 d$BsmtFinSF1 <- as.numeric(d$BsmtFinSF1)
 d$BsmtFinSF2 <- as.numeric(d$BsmtFinSF2)
-d$BsmtFinType1 <- parse_factor(d$BsmtFinType1, levels = OF.levels$BsmtFinType1, ordered = T)
-d$BsmtFinType2 <- parse_factor(d$BsmtFinType2, levels = OF.levels$BsmtFinType2, ordered = T)
+d$BsmtFinType1 <- parse_factor(d$BsmtFinType1, levels = OF.levels$BsmtFinType1, ordered = TRUE)
+d$BsmtFinType2 <- parse_factor(d$BsmtFinType2, levels = OF.levels$BsmtFinType2, ordered = TRUE)
 d$BsmtFullBath <- as.numeric(d$BsmtFullBath)
 d$BsmtHalfBath <- as.numeric(d$BsmtHalfBath)
-d$BsmtQual <- parse_factor(d$BsmtQual, levels = OF.levels$BsmtQual, ordered = T) %>% fct_explicit_na("NA")
+d$BsmtQual <- parse_factor(d$BsmtQual, levels = OF.levels$BsmtQual, ordered = TRUE) %>% fct_explicit_na("NA")
 d$BsmtUnfSF <- as.numeric(d$BsmtUnfSF)
 d$CentralAir <- parse_factor(d$CentralAir, levels = UF.levels$CentralAir)
 d$Condition1 <- parse_factor(d$Condition1, levels = UF.levels$Condition1)
@@ -290,11 +290,34 @@ d$CondRail <- factor(ifelse(d$Condition1 %in% c('RRNn', 'RRAn', 'RRNe', 'RRAe'),
 d$CondPos <- factor(ifelse(d$Condition1 %in% c('PosN', 'PosA'), 1, 0) +
                       ifelse(d$Condition2 %in% c('PosN', 'PosA'), 1, 0),
                     ordered = TRUE)
+d$Cond <- factor(case_when(d$Condition1 %in% c('RRNn', 'RRAn', 'RRNe', 'RRAe', 'Artery', 'Feedr') ~ -1,
+                           d$Condition2 %in% c('RRNn', 'RRAn', 'RRNe', 'RRAe', 'Artery', 'Feedr') ~ -1,
+                           d$Condition1 %in% c('PosN', 'PosA') ~ 1,
+                           d$Condition2 %in% c('PosN', 'PosA') ~ 1,
+                           TRUE ~ 0),
+                 ordered = TRUE)
 
-p1 <- d %>% ggplot(aes(x = CondRoad, y = SalePrice)) + geom_boxplot(na.rm = TRUE) 
-p2 <- d %>% ggplot(aes(x = CondRail, y = SalePrice)) + geom_boxplot(na.rm = TRUE) 
-p3 <- d %>% ggplot(aes(x = CondPos, y = SalePrice)) + geom_boxplot(na.rm = TRUE) 
+p1 <- d %>% ggplot(aes(x = CondRoad, y = SalePrice)) + 
+  geom_jitter(aes(color = CondRoad), width = 0.2) +
+  geom_boxplot(aes(fill = CondRoad), alpha = 0.5, outlier.shape = NA) + 
+  stat_boxplot(geom = "errorbar", width = 0.4) + 
+  theme(legend.position = "none")
+p2 <- d %>% ggplot(aes(x = CondRail, y = SalePrice)) + 
+  geom_jitter(aes(color = CondRail), width = 0.2) +
+  geom_boxplot(aes(fill = CondRail), alpha = 0.5, outlier.shape = NA) + 
+  stat_boxplot(geom = "errorbar", width = 0.4) + 
+  theme(legend.position = "none")
+p3 <- d %>% ggplot(aes(x = CondPos, y = SalePrice)) + 
+  geom_jitter(aes(color = CondPos), width = 0.2) +
+  geom_boxplot(aes(fill = CondPos), alpha = 0.5, outlier.shape = NA) + 
+  stat_boxplot(geom = "errorbar", width = 0.4) + 
+  theme(legend.position = "none")
 grid.arrange(p1, p2, p3, nrow = 1)
+ggplot(d, aes(x = Cond, y = SalePrice)) + 
+  geom_jitter(aes(color = Cond), width = 0.2) +
+  geom_boxplot(aes(fill = Cond), alpha = 0.5, outlier.shape = NA) + 
+  stat_boxplot(geom = "errorbar", width = 0.4) + 
+  theme(legend.position = "none")
 
 #' ## `GarageYrBlt`
 #' 
@@ -397,6 +420,9 @@ d %>% skimr::skim_to_wide() %>% filter(as.numeric(missing) > 0)
 #' ...but set the test set `SalePrice` values back to `NA`!
 d$SalePrice <- ifelse(d$Set == "test", NA, d$SalePrice)
 
+#' Here is one more look at the data set.
+#' 
+skimr::skim_to_wide(d)[, c(1:3, 9, 14, 16, 18, 19)] %>% knitr::kable()
 
 #' # Save Work
 #' 

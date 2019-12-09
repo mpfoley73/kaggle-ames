@@ -94,9 +94,11 @@ p <- map(colnames(d[,col_is_nom]),
 exec(grid.arrange, ncol = 4, !!!p)
 
 #' ## Quantitative Variables
-#' Skew can contribute to violation of linearity in linear regressions.  
-#' I'll check which variables have significant skew.  Skew between 0.5 and 1.0 
-#' is generally considered moderate, and skew greater than 1 severe.
+#' Skew can contribute to violation of linearity in linear regressions.  I'll 
+#' check which variables have significant skew.  Skew between 0.5 and 1.0 
+#' is generally considered moderate, and skew greater than 1 severe.  In the 
+#' following charts, the moderately skewed predictors are colored gold and the
+#' severely skewed predictors are colored red.
 
 #+ message=FALSE, fig.height = 16
 col_skew <- map(d[, col_is_num], skewness) %>% unlist()
