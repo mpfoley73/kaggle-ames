@@ -104,7 +104,7 @@ d_lin <- d %>%
                                   HdBoardP = "HdBoard", HdBoardP = "CBlock", HdBoardP = "AsphShn", HdBoardP = "BrkComm")) %>%
   mutate(Exterior2nd = fct_recode(Exterior2nd, WdSdngP = "Wd Sdng", WdSdngP = "WdShing", WdSdngP = "Stucco",
                                   HdBoardP = "HdBoard", HdBoardP = "ImStucc")) %>%
-#  mutate(ExterQual = fct_recode(ExterQual, Fa_TA = "Fa", Fa_TA = "TA")) %>%
+  mutate(ExterQual = fct_recode(ExterQual, Fa_TA = "Fa", Fa_TA = "TA")) %>%
   mutate(Fence = fct_recode(Fence, NA_GP = "NA", NA_GP = "GdPrv",
                             M_M_G = "MnWw", M_M_G = "MnPrv", M_M_G = "GdWo")) %>%
   mutate(FireplaceQu = fct_recode(FireplaceQu, NA_Fa = "NA", NA_Fa = "Po", NA_Fa = "Fa")) %>%
@@ -248,113 +248,133 @@ model.lm <- train(
   trControl = model.trControl
 )
 
-#' Caret throws warnings about rank-deficient fits.  That could mean the number
-#' of observations in the folds are less than the number of predictor variable
-#' coefficients to estimate, but that is not so here - the fold size is over 
-#' 1000 observations.  It could mean some variabes are perfect
-#' combinations of other predictors.  And it could mean that within the folds
-#' there is zero variance in some predictors.  And what did I get for a model?
+#' What did I get for a model?
 #' 
 summary(model.lm)
 
-#' lm warns "q not defined because of singularities".  That means one 
-#' variable (ExterQual_4) was a perfect linear combination of other variables.  
-#' How did the model perform in terms of the within-sample RMSE?
+#' lm warned "X not defined because of singularities" prior to collapsing some
+#' of the factor variables.  No errors now. How did the model perform in terms 
+#' of the within-sample RMSE?
 #' 
 print(model.lm)
 
 #' The within-sample RMSE was `r round(model.lm$results$RMSE, 4)`.  (The 
 #' within-sample RMSE is the average
-#' of 10 hold-out fold RMSEs, `mean(model.lm$resample$RMSE)`).  How about in
-#' terms of the hold-out RMSE?
+#' of 10 hold-out fold RMSEs, `mean(model.lm$resample$RMSE)`).  Here are 
+#' the results of the individual folds.
+#'  
+#+ fig.height = 3
+model.lm$resample %>%
+  ggplot(aes(x = Resample, y = RMSE)) +
+  geom_col(fill = "cadetblue") +
+  theme_minimal() +
+  labs(title = "lm model CV RMSE")
+
+#' Here is an observed vs predicted plot with prediction errors
+#' >10% labeled (none are).
+#' 
+model.lm$pred %>% 
+  mutate(label = ifelse(abs(obs - pred) / obs > 0.10, rowIndex, "")) %>%
+  ggplot(aes(x = pred, y = obs, label = label)) + 
+  geom_point(alpha = .2, color = "cadetblue") + 
+  geom_abline(slope = 1, intercept = 0, color = "cadetblue", linetype = 2) +
+  geom_text(size = 3, position = position_jitter(width = .3, height = .3)) +
+  expand_limits(x = c(7.5, 15), y = c(7.5, 15)) +
+  labs(title = "LM: Observed vs Predicted")
+
+#' Does the model conform to the linear model assumption that residuals are 
+#' independent random variables normally distributed with mean zero and 
+#' constant variance?  A standardized residuals vs fits plot vary around e=0
+#' (linearity) with a constant width (especially no fan shape at the low or 
+#' high ends) (equal variance).  95% of standardized residuals should fall 
+#' within two standard deviations.
+#' 
+model.lm$pred %>% 
+  mutate(res = pred-obs,
+         stdres = res / sd(res),
+         label = ifelse(abs(stdres) > 2, rowIndex, "")) %>%
+  ggplot(aes(x = pred, y = stdres, label = label)) + 
+  geom_point(alpha = .2, color = "cadetblue") + 
+  geom_abline(slope = 0, intercept = 2, color = "cadetblue", linetype = 2) +
+  geom_abline(slope = 0, intercept = -2, color = "cadetblue", linetype = 2) +
+  geom_text(size = 2, position = position_jitter(width = .3, height = .3), color = "cadetblue") +
+#  expand_limits(x = c(7.5, 15), y = c(7.5, 15)) +
+  labs(title = "LM: Standardized Residuals vs Predicted")
+
+#' A normal probability plot compares the theoretical percentiles of the normal 
+#' distribution versus the observed sample percentiles. It should be 
+#' approximately linear.  
+stdres <- model.lm$pred %>% 
+  mutate(res = pred-obs,
+         stdres = res / sd(res)) %>%
+  pull(stdres)
+qqnorm(stdres, main = "LM: Normal Q-Q Plot")
+qqline(stdres)
+
+#' This one does not look so good.  The distribution is heavy tailed - There 
+#' are many extreme positive and negative residuals.  The Anderson-Darling 
+#' normality test p-value is the probability of calculating the test statistic 
+#' if the distribution is normal.  This one is not normal.
+library(nortest)
+model.lm$pred %>% 
+  mutate(res = pred-obs) %>%
+  pull(res) %>% 
+  ad.test()
+
+#' Which predictors were both significant and meaningful?  I standardized the 
+#' predictors in the model, so I can check this by just comparing 
+#' the coefficients.  The coefficient values indicate the effect of a 1 SD 
+#' change in the predictor value on the log SalePrice.
+#' Here are the predictors with p-values <.05 and estimates > 0.1.
+#' 
+summary(model.lm)$coefficients %>%
+  data.frame() %>%
+  rownames_to_column(var = "Variable") %>%
+  mutate(p = `Pr...t..`) %>%
+  mutate(est2 = exp(Estimate)) %>%
+  filter(abs(Estimate) > .01 & p < .05 & Variable != "(Intercept)") %>%
+  select(Variable, Estimate, p, est2) %>%
+  arrange(desc(abs(Estimate))) %>%
+  top_n(10)
+
+#' Overall quality (no surprise), followed by basement size (a bit of a 
+#' surprise), then second and first floor size.  These all seem good.  Okay, 
+#' moving on, how does the model perform against the validation set?
 #' 
 (perf.lm <- postResample(pred = predict(model.lm, newdata = d_lin_train20), 
                          obs = d_lin_train20$logSalePrice))
 
-#' It's better.  That's a little surprising - you'd expect it to be a little 
-#' bit worse.  GOODBYE.
-
-d.train80_b <- d.train80 %>%
-  select(-c(BsmtCond, BsmtFinType1, BsmtQual, Condition2, Electrical, ExterCond,
-            Exterior1st, Exterior2nd, ExterQual, Functional, GarageFinish,
-            GarageQual, GarageType, KitchenQual, MasVnrType, MiscFeature, 
-            MSSubClass, MSZoning, OverallCond, PoolQC, RoofMatl, SaleType, 
-            TotalBsmtSF, Utilities, X2ndFlrSF, CondRoad, CondRail, CondPos,
-            TotalSF, TotalBath))
-
-
-#' Two of the variables I'm dropping are ones I created in the data
-#' exploration phase (`TotalSF` and `TotalBath`).  I might want to override
-#' this systematic approach, but for now I'll keep going and fit the model.
+#' It's slightly better than the within-sample RMSE.  That's surprising - I 
+#' expected it to be a little worse.  I'll compare this performance with other 
+#' models.
 #' 
-model.lm_b <- train(
-  logSalePrice ~ . -Id -SalePrice,
-  data = d.train80_b,
-  method = "lm",
+
+
+#' ## OLS with Stepwise Selection
+#'
+model.step <- train(
+  x = ols_recipe_7,
+  data = d_lin_train80,
+  method = "leapSeq",
+  tuneGrid = data.frame(nvmax = 50:80),
   metric = "RMSE",
-  preProcess = c("nzv", "BoxCox", "center", "scale"),
   trControl = model.trControl
 )
 
-#' I still got a couple warings from caret about rank-deficient fits.  I think
-#' that means that within the folds, caret is finding near-perfect collinearity
-#' (I doubt that it means I've actually reduced the degrees of freedom to <=0).
-#' 
-summary(model.lm_b)
+#' How many predictors did the algorithm use?
+print(model.step)
 
-#' The model summary no longer includes and singularities.
+#' 72 predictors.  Here is a plot of the number of predictors that minimize the
+#' RMSE.
+plot(model.step)
 
-print(model.lm_b)
-
-#' The within-sample RMSE fell to `r round(model.lm_b$results$RMSE, 4)`.  
-#' Caret removed 71 variables, Box-Cox transformed 9, then centered and scaled
-#' 89 vars.  Here are the variable it removed due to NZV.
-#' 
-model.lm_b$preProcess$method$remove
-
-#' When caret finds a level that has NZV it removes just that level.  E.g., it 
-#' dropped `MoSold2`, `MoSold9`, and `MoSold12`, but retained the other levels 
-#' of `MoSold`.  I'm not comfortable with that. Seems like I should collapse 
-#' variables like this, not drop them.  There is a discussion about this on 
-#' [StackExchange](https://stats.stackexchange.com/questions/146907/principled-way-of-collapsing-categorical-variables-with-many-levels).
-#' I think the take-away is that penalization models are the best way to handle
-#' NZV predictors.
-#' 
-names(model.lm_b$preProcess$bc)
-
-#' Box-Cox transformed 9 variables. 
-#' The Box-Cox procedure only applies to variables with values >0.  (I tried 
-#' this with a Yeo-Johnson transformation, but it produced a poorer performing 
-#' model, so I'm staying with Box-Cox.) The within-sample RMSE was 
-#' `r round(model.lm_b$results$RMSE, 4)`.  Here are the 
-#' results of the individual folds.
-#'  
-#+ fig.height = 3
-model.lm_b$resample %>%
-  ggplot(aes(x = Resample, y = RMSE)) +
-  geom_col(fill = "cadetblue") +
-  theme_minimal() +
-  labs(title = "lm model CV RMSE")
-
-#' Here is an observed vs predicted plot with prediction errors
-#' >10% labeled (none are).
-#' 
-model.lm_b$pred %>% 
-  mutate(label = ifelse(abs(obs - pred) / obs > 0.10, rowIndex, "")) %>%
-  ggplot(aes(x = pred, y = obs, label = label)) + 
-  geom_point(alpha = .2, color = "cadetblue") + 
-  geom_abline(slope = 1, intercept = 0, color = "cadetblue", linetype = 2) +
-  geom_text(size = 3, position = position_jitter(width = .3, height = .3)) +
-  expand_limits(x = c(7.5, 15), y = c(7.5, 15)) +
-  labs(title = "LM: Observed vs Predicted")
-
-#' Which predictors were both significant and meaningful?  I
-#' standardized the predictors in the model, so I can do this by must comparing 
+#' Which predictors were both significant and meaningful?  I standardized the 
+#' predictors in the model, so I can check this by just comparing 
 #' the coefficients.  The coefficient values indicate the effect of a 1 SD 
 #' change in the predictor value on the log SalePrice.
 #' Here are the predictors with p-values <.05 and estimates > 0.1.
 #' 
-summary(model.lm)$coefficients %>%
+summary(model.step)$coefficients %>%
   data.frame() %>%
   rownames_to_column(var = "Variable") %>%
   mutate(p = `Pr...t..`) %>%
@@ -363,83 +383,19 @@ summary(model.lm)$coefficients %>%
   select(Variable, Estimate, p, est2) %>%
   arrange(desc(abs(Estimate))) %>%
   top_n(10)
-
-#' Total rooms above ground, followed by average square footage per room (hey,
-#' I added that variable!).  Then Overall quality (first order), basement 
-#' Square footage, last remodel year, lot area, A/C, garage capacity, Sale 
-#' condition (hmm!), and foundation (really?).  So what does the first 
-#' predictor coefficient indicate?  The mean value of `TotRmsAbvGrd` was 
-#' `r mean(d.train80_b$TotRmsAbvGrd)` and standard deviation was 
-#' `r sd(d.train80_b$TotRmsAbvGrd)`.  So adding a room and half increases
-#' the sale price by 29%. Okay, moving on, how does the model perform against 
-#' the validation set?
+model.step$results
+#' Overall quality (no surprise), followed by basement size (a bit of a 
+#' surprise), then second and first floor size.  These all seem good.  Okay, 
+#' moving on, how does the model perform against the validation set?
 #' 
-(perf.lm <- postResample(pred = predict(model.lm, newdata = d.valid), 
-                         obs = d.valid$logSalePrice))
-
-#' I'll compare this performance with other models.
+#' How did the model perform in terms of the within-sample RMSE?
 #' 
-#' ## OLS with Stepwise Selection
 
-model.step <- train(
-  logSalePrice ~ . -Id -SalePrice,
-  data = d.train80,
-  method = "leapSeq",
-  tuneGrid = data.frame(nvmax = 35:65),
-  metric = "RMSE",
-  preProcess = c("nzv", "BoxCox", "center", "scale"),
-  trControl = model.trControl
-)
-print(model.step)
-plot(model.step)
 print(model.step.best <- model.step$bestTune %>% pull())
 print(coef(model.step$finalModel, model.step.best))
-(perf.step <- postResample(pred = predict(model.step, newdata = d.valid), 
-                         obs = d.valid$logSalePrice))
+(perf.step <- postResample(pred = predict(model.step, newdata = d_lin_train20), 
+                         obs = d_lin_train20$logSalePrice))
 
-#' The within-sample RMSE was `r round(model.lm_b$results$RMSE, 4)`.  Here are the 
-#' results of the individual folds.
-#'  
-#+ fig.height = 3
-model.lm_b$resample %>%
-  ggplot(aes(x = Resample, y = RMSE)) +
-  geom_col(fill = "cadetblue") +
-  theme_minimal() +
-  labs(title = "lm model CV RMSE")
-
-#' Here is an observed vs predicted plot with prediction errors
-#' >10% labeled (none are).
-#' 
-model.lm_b$pred %>% 
-  mutate(label = ifelse(abs(obs - pred) / obs > 0.10, rowIndex, "")) %>%
-  ggplot(aes(x = pred, y = obs, label = label)) + 
-  geom_point(alpha = .2, color = "cadetblue") + 
-  geom_abline(slope = 1, intercept = 0, color = "cadetblue", linetype = 2) +
-  geom_text(size = 3, position = position_jitter(width = .3, height = .3)) +
-  expand_limits(x = c(7.5, 15), y = c(7.5, 15)) +
-  labs(title = "LM: Observed vs Predicted")
-
-#' Which predictors were both significant and meaningful?  I
-#' standardized the predictors in the model, so I can do this by must comparing 
-#' the coefficients.  The coefficient values indicate the effect of a 1 SD 
-#' change in the predictor value on the log SalePrice.
-#' Here are the predictors with p-values <.05 and estimates > 0.1.
-summary(model.lm)$coefficients %>%
-  data.frame() %>%
-  rownames_to_column(var = "Variable") %>%
-  mutate(p = `Pr...t..`) %>%
-  mutate(est2 = exp(Estimate)) %>%
-  filter(abs(Estimate) > .01 & p < .05 & Variable != "(Intercept)") %>%
-  select(Variable, Estimate, p, est2) %>%
-  arrange(desc(abs(Estimate))) %>%
-  top_n(10)
-
-#' Square footage of the second floor, followed by overall quality, then 
-#' square footage of the first floor.  Makes sense.  Newer is better,
-#' garage of some sort, big lot, bigger garage, and Residential Low Density
-#' zoning.  Okay, moving on, how does my model perform against the validation 
-#' set?
-#' 
 (perf.lm <- postResample(pred = predict(model.lm, newdata = d.valid), 
                          obs = d.valid$logSalePrice))
 
