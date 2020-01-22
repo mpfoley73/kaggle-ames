@@ -366,6 +366,15 @@ varImp(model.lm)
 #' models.
 #' 
 
+#' Will interaction terms help?
+#' 
+inter_terms <- varImp(model.lm)$importance %>%
+  rownames_to_column(var = "pred") %>%
+  arrange(-Overall) %>%
+  top_n(n = 10, wt = Overall) %>%
+  pull(pred)
+
+
 
 #' ## Stepwise Selection
 #'
@@ -524,19 +533,20 @@ d.train20 <- d.train[-partition, !(colnames(d.train) %in% c("Id", "SalePrice"))]
 #' tuning grid for ridge regression.
 #' 
 
-# pen_recipe <- 
-#   recipe(logSalePrice ~ ., data = d.train80) %>% 
+# pen_recipe <-
+#   recipe(logSalePrice ~ ., data = d.train80) %>%
 #   step_zv(all_predictors()) %>%
 #   step_center(all_predictors(), -all_nominal()) %>%
 #   step_scale(all_predictors(), -all_nominal()) %>%
-#   step_dummy(all_predictors(), -all_numeric())
-
+#   step_dummy(all_predictors(), -all_numeric()) 
+  
 #+ model_ridge
 model.ridge <- train(
   logSalePrice ~ .,
 #  x = pen_recipe,
   data = d.train80,
   method = "glmnet",
+#  standardize = FALSE,
   metric = "RMSE", 
   preProcess = c("zv", "center", "scale"),  
   # tweak a tuning grid to zero in on best hyperparameter settings.
@@ -561,11 +571,10 @@ varImp(model.ridge)
 
 #' How does the model perform against the out-of-sample set?
 #' 
-perf.ridge <- postResample(
+(perf.ridge <- postResample(
   pred = predict(model.ridge, newdata = d.train20), 
   obs = d.train20$logSalePrice
-  )
-perf.ridge
+  ))
 
 #' Not bad.  A new front-runner.
 #'
@@ -771,7 +780,7 @@ perf.bag
 #' split.  Typically $mtry \sim \sqrt{B}$.  Bagged trees are thus a special 
 #' case of random forests where *mtry = p*.
 #' 
-#+ model_for
+#+ model_for, cache=TRUE
 model.for <- train(
   # pass in matrix instead of formula
   x = d.train80[, -1], 
@@ -838,7 +847,7 @@ perf.for
 #' learning rate.  Decreasing the learning rate increases the number of 
 #' required trees.  Common growth rates are 0.1 to 0.3.
 
-#+ model_gbm
+#+ model_gbm, cache=TRUE
 model.gbm <- train(
   # pass in matrix instead of formula
   x = d.train80[, -1], 
@@ -875,6 +884,81 @@ perf.gbm <- postResample(
 perf.gbm
 
 
+#' # Nonlinear Regression
+#' 
+#' ## MARS
+#' 
+#' Multivariate adaptive regression splines (MARS) is a non-parametric 
+#' algorithm that creates a piecewise linear model to capture nonlinearities 
+#' and interactions effects. The resulting model is a weighted sum of *basis* 
+#' functions $B_i(X)$:
+#' 
+#' $$\hat{y} = \sum_{i=1}^{k}{w_iB_i(x)}$$
+#' 
+#' The basis functions are either a constant (for the intercept), a *hinge* 
+#' function of the form $\max(0, x - x_0)$ or $\max(0, x_0 - x)$ (a more 
+#' concise representation is $[\pm(x - x_0)]_+$), or products of two or more 
+#' hinge functions (for interactions).  MARS automatically selects which 
+#' predictors to use and what predictor values to serve as the *knots* of the 
+#' hinge functions.
+#' 
+#' MARS builds a model in two phases: the forward pass and the backward pass, 
+#' similar to growing and pruning of tree models. MARS starts with a model 
+#' consisting of just the intercept term equaling the mean of the response 
+#' values.  It then asseses every predictor to find a basis function pair 
+#' consisting of opposing sides of a mirrored hinge function which produces 
+#' the maximum improvement in the model error.  MARS repeats the process until 
+#' either it reaches a predefined limit of terms or the error improvement 
+#' reaches a predefined limit.  MARS generalizes the model by removing terms 
+#' according to the generalized cross validation (GCV) criterion.  GCV is a 
+#' form of regularization: it trades off goodness-of-fit against model 
+#' complexity. 
+#' 
+#' The `earth::earth()` function ([documentation](https://www.rdocumentation.org/packages/earth/versions/5.1.2/topics/earth)) 
+#' performs the MARS algorithm.  The caret implementation tunes two 
+#' parameters: `nprune` and `degree`.  `nprune` is the maximum number of terms 
+#' in the pruned model.  `degree` is the maximum degree of interaction 
+#' (default is 1 (no interactions)).  However, there are other hyperparameters 
+#' in the model that may improve performance, including `minspan` which 
+#' regulates the number of knots in the predictors.
+#' 
+#+ model_mars, cache=TRUE
+mars_recipe <- 
+  recipe(logSalePrice ~ ., data = d.train80)  
+
+model.mars <- train(
+  mars_recipe,
+  data = d.train80,
+  method = "earth",
+  metric = "RMSE",
+  minspan = -15,
+  trControl = trainControl(method = "cv", number = 10),
+  tuneGrid = expand.grid(
+    degree = 1, 
+    nprune = seq(2, 100, length.out = 10) %>% floor()
+  )
+)
+
+#' Here are the tuning results.
+#' 
+model.mars$bestTune
+
+#' Here is a plot of the tuning process.  I tweaked the tuning grid to hone in
+#' on the best degree, nprune, and minspan.
+#' 
+plot(model.mars, main = "MARS Parameter Tuning")
+
+#' How does the model perform against the out-of-sample set?
+#' 
+(perf.mars <- postResample(
+  pred = predict(model.mars, newdata = d.train20),
+  obs = d.train20$logSalePrice
+))
+
+#' Better than the tree models, but not as good as any of the penalization 
+#' models.  
+#' 
+#' 
 #' # Model Evaluation
 #' 
 #' Here is a summary of the fitted model performances on the within-sample 
@@ -888,7 +972,8 @@ models <- list(
   elnet = model.elnet,
   bag = model.bag,
   forest = model.for,
-  gbm = model.gbm
+  gbm = model.gbm,
+  mars = model.mars
   )
 resamples(models) %>% summary(metric = "RMSE")
 bwplot(resamples(models), metric = "RMSE", main = "Model Comparison on Resamples")
@@ -904,10 +989,11 @@ rbind(
   perf.elnet, 
   perf.bag,
   perf.for,
-  perf.gbm
-)
+  perf.gbm,
+  perf.mars
+) %>% data.frame() %>% rownames_to_column(var = "Model") %>% arrange(-RMSE)
 
-#' The big winner is... kind of a tie with step, elnet, and lasso. I choose elastic net.  
+#' The big winner is... kind of a tie with step, elnet, and lasso. I choose elastic net. 
 #' Congratulations, elastic net!
 #' 
 #' 
