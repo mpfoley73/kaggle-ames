@@ -366,15 +366,29 @@ varImp(model.lm)
 #' models.
 #' 
 
-#' Will interaction terms help?
+#' What if I treat `OverallQual` and `OverallCon` as numeric variables?
 #' 
-inter_terms <- varImp(model.lm)$importance %>%
-  rownames_to_column(var = "pred") %>%
-  arrange(-Overall) %>%
-  top_n(n = 10, wt = Overall) %>%
-  pull(pred)
+d_lin_train80b <- d_lin_train80 %>%
+  mutate(
+    OverallQual = as.numeric(OverallQual),
+    OverallCond = as.numeric(OverallCond)
+  )
+d_lin_train20b <- d_lin_train20 %>%
+  mutate(
+    OverallQual = as.numeric(OverallQual),
+    OverallCond = as.numeric(OverallCond)
+  )
+model.lmb <- train(
+  x = ols_recipe_7,
+  data = d_lin_train80b,
+  method = "lm",
+  metric = "RMSE",
+  trControl = model.trControl
+)
+(perf.lmb <- postResample(pred = predict(model.lmb, newdata = d_lin_train20b), 
+                         obs = d_lin_train20b$logSalePrice))
 
-
+#' The RMSE improved by 0.0022.
 
 #' ## Stepwise Selection
 #'
@@ -491,6 +505,26 @@ perf.step
 #' `r length(model.lm$finalModel$coefficients) - 1` in the original model!
 #' 
 #'
+#' Again, what if I treat `OverallQual` and `OverallCon` as numeric variables?
+#' 
+
+model.lmStepAICb <- train(
+  x = ols_recipe_7,
+  data = d_lin_train80b,
+  method = "lmStepAIC", 
+  trace = FALSE,
+  metric = "RMSE",
+  trControl = model.trControl
+)
+perf.stepb <- postResample(
+  pred = predict(model.lmStepAICb, newdata = d_lin_train20b), 
+  obs = d_lin_train20b$logSalePrice
+)
+perf.stepb
+
+#' Treating `OverallQual` and `OverallCon` as numeric variables improved the 
+#' RMSE by 0.026.
+
 #' ## Regularization Models 
 #' 
 #' Regularization is an approach that reduces variance at the cost of 
@@ -578,6 +612,39 @@ varImp(model.ridge)
 
 #' Not bad.  A new front-runner.
 #'
+#' What if I treat `OverallQual` and `OverallCon` as numeric variables?
+#' 
+d.train80b <- d.train80 %>%
+  mutate(
+    OverallQual = as.numeric(OverallQual),
+    OverallCond = as.numeric(OverallCond)
+  )
+d.train20b <- d.train20 %>%
+  mutate(
+    OverallQual = as.numeric(OverallQual),
+    OverallCond = as.numeric(OverallCond)
+  )
+model.ridgeb <- train(
+  logSalePrice ~ .,
+  #  x = pen_recipe,
+  data = d.train80b,
+  method = "glmnet",
+  #  standardize = FALSE,
+  metric = "RMSE", 
+  preProcess = c("zv", "center", "scale"),  
+  # tweak a tuning grid to zero in on best hyperparameter settings.
+  tuneGrid = expand.grid(
+    .alpha = 0,  # alpha = 0 for ridge regression
+    .lambda = seq(0, 0.5, length = 100)),
+  trControl = model.trControl
+)
+(perf.ridgeb <- postResample(
+  pred = predict(model.ridgeb, newdata = d.train20b), 
+  obs = d.train20b$logSalePrice
+))
+
+#' The RMSE *increased* very slightly (0.0004).
+#' 
 #' ### Lasso
 #' 
 #' Lasso stands for “least absolute shrinkage and selection operator”.  Like 
@@ -623,7 +690,25 @@ perf.lasso <- postResample(
   obs = d.train20$logSalePrice)
 perf.lasso
 
-#' Good.  A new front-runner again.
+#' Good.  A new front-runner again.  Now try treating `OverallQual` and `OverallCond` as numerics.
+#' 
+model.lassob <- train(
+  logSalePrice ~ .,
+  data = d.train80b,
+  method = "glmnet",
+  metric = "RMSE", 
+  preProcess = c("zv", "center", "scale"),  
+  tuneGrid = expand.grid(
+    .alpha = 1,  # alpha = 1 for lasso regression
+    .lambda = seq(0, 0.025, length = 100)),
+  trControl = model.trControl
+)
+perf.lassob <- postResample(
+  pred = predict(model.lassob, newdata = d.train20b),
+  obs = d.train20b$logSalePrice)
+perf.lassob
+
+#' Again, a small increase in the RMSE (0.0004).
 #' 
 #'
 #' ### Elastic Net
@@ -670,7 +755,26 @@ perf.elnet <- postResample(
   obs = d.train20$logSalePrice)
 perf.elnet
 
-#' Life just gets better and better.
+#' Life just gets better and better.  Now try treating `OverallQual` and `OverallCond` as numerics.
+#' 
+model.elnetb <- train(
+  logSalePrice ~ .,
+  data = d.train80b,
+  method = "glmnet",
+  metric = "RMSE", 
+  preProcess = c("zv", "center", "scale"),  
+  tuneGrid = expand.grid(
+    .alpha = seq(0, 0.25, length = 10),  # alpha varies for elastic net regression
+    .lambda = seq(0, 0.05, length = 10)),
+  trControl = model.trControl
+)
+perf.elnetb <- postResample(
+  pred = predict(model.elnetb, newdata = d.train20b), 
+  obs = d.train20b$logSalePrice)
+perf.elnetb
+
+#' Again, a small increase in the RMSE (0.0006).
+#' 
 #'
 #' # Decision Trees 
 #'
@@ -766,7 +870,29 @@ perf.bag <- postResample(
   )
 perf.bag
 
-#' This is the worst model so far.
+#' This is the worst model so far.  Does treating `OverallQual` and 
+#' `OverallCond` as numerics help?
+model.bagb <- train(
+  # pass in matrix instead of formula
+  x = d.train80b[, -1], 
+  y = d.train80b[, 1],  
+  method = "ranger",
+  metric = "RMSE", 
+  preProcess = c("zv"),  
+  tuneGrid = expand.grid(
+    .mtry = length(d.train80b[, -c(1:3)]),  # mtry = p for bagging
+    .splitrule = c("variance", "extratrees", "maxstat"),
+    .min.node.size = seq(from = 1, to = 10)
+  ),
+  trControl = model.trControl
+)
+perf.bagb <- postResample(
+  pred = predict(model.bagb, newdata = d.train20b), 
+  obs = d.train20b$logSalePrice
+)
+perf.bagb
+
+#' Just about the same performance. 
 #' 
 #' 
 #' ## Random Forest
@@ -813,8 +939,29 @@ perf.for <- postResample(
   )
 perf.for
 
-#' A little better than bagging.  
+#' A little better than bagging.  And with the numerice `OveralCond` and `OverallQual`?
 #'  
+model.forb <- train(
+  # pass in matrix instead of formula
+  x = d.train80b[, -1], 
+  y = d.train80b[, 1],  
+  method = "ranger",
+  metric = "RMSE", 
+  preProcess = c("zv"),  
+  tuneGrid = expand.grid(
+    .mtry = seq(from = 50, to = 94, by = 5),  # mtry varies for random forest
+    .splitrule = c("extratrees"),  # optimized out variance, maxstat
+    .min.node.size = seq(from = 4, to = 5, by = 1)
+  ),
+  trControl = model.trControl
+)
+perf.forb <- postResample(
+  pred = predict(model.forb, newdata = d.train20),
+  obs = d.train20b$logSalePrice
+)
+perf.forb
+
+#' The numerics were a smidge better.
 #' 
 #' ## Boosting
 #' 
@@ -883,6 +1030,34 @@ perf.gbm <- postResample(
 )
 perf.gbm
 
+#' And now with numeric `OverallQual` and `OverallCond`.
+#'
+model.gbmb <- train(
+  # pass in matrix instead of formula
+  x = d.train80b[, -1], 
+  y = d.train80b[, 1],  
+  method = "gbm",  # gradient boosting
+  metric = "RMSE", 
+  distribution = "gaussian",
+  verbose = FALSE,
+  preProcess = c("zv"), 
+  tuneGrid = expand.grid(
+    .n.trees = seq(from = 100, to = 400, by = 20),
+    .interaction.depth = c(3, 4, 5),
+    .shrinkage = c(0.025, 0.050, 0.075),  # aka, learning rate
+    .n.minobsinnode = c(2, 3, 4)
+  ),
+  trControl = model.trControl
+)
+
+perf.gbmb <- postResample(
+  pred = predict(model.gbmb, newdata = d.train20b),
+  obs = d.train20b$logSalePrice
+)
+perf.gbmb
+
+#' RMSE improved from 0.1182 to 0.1145.
+#' 
 
 #' # Nonlinear Regression
 #' 
@@ -956,7 +1131,26 @@ plot(model.mars, main = "MARS Parameter Tuning")
 ))
 
 #' Better than the tree models, but not as good as any of the penalization 
-#' models.  
+#' models.  One more try with numeric `OverallQual` and `OverallCond`.
+#' 
+model.marsb <- train(
+  mars_recipe,
+  data = d.train80b,
+  method = "earth",
+  metric = "RMSE",
+  minspan = -15,
+  trControl = trainControl(method = "cv", number = 10),
+  tuneGrid = expand.grid(
+    degree = 1, 
+    nprune = seq(2, 100, length.out = 10) %>% floor()
+  )
+)
+(perf.marsb <- postResample(
+  pred = predict(model.marsb, newdata = d.train20b),
+  obs = d.train20b$logSalePrice
+))
+#' A good improvement again.
+
 #' 
 #' 
 #' # Model Evaluation
@@ -966,14 +1160,23 @@ plot(model.mars, main = "MARS Parameter Tuning")
 #' 
 models <- list(
   lm = model.lm,
+  lmb = model.lmb,
   step = model.lmStepAIC, 
+  stepb = model.lmStepAICb, 
   ridge = model.ridge, 
+  ridgeb = model.ridgeb, 
   lasso = model.lasso, 
+  lassob = model.lassob, 
   elnet = model.elnet,
+  elnetb = model.elnetb,
   bag = model.bag,
+  bagb = model.bagb,
+  forestb = model.forb,
   forest = model.for,
   gbm = model.gbm,
-  mars = model.mars
+  gbmb = model.gbmb,
+  mars = model.mars,
+  marsb = model.marsb
   )
 resamples(models) %>% summary(metric = "RMSE")
 bwplot(resamples(models), metric = "RMSE", main = "Model Comparison on Resamples")
@@ -983,17 +1186,26 @@ bwplot(resamples(models), metric = "RMSE", main = "Model Comparison on Resamples
 #' 
 rbind(
   perf.lm, 
+  perf.lmb, 
   perf.step, 
+  perf.stepb, 
   perf.ridge, 
+  perf.ridgeb, 
   perf.lasso, 
+  perf.lassob, 
   perf.elnet, 
+  perf.elnetb, 
   perf.bag,
+  perf.bagb,
   perf.for,
+  perf.forb,
   perf.gbm,
-  perf.mars
+  perf.gbmb,
+  perf.mars,
+  perf.marsb
 ) %>% data.frame() %>% rownames_to_column(var = "Model") %>% arrange(-RMSE)
 
-#' The big winner is... kind of a tie with step, elnet, and lasso. I choose elastic net. 
+#' The big winner is... elastic net. 
 #' Congratulations, elastic net!
 #' 
 #' 

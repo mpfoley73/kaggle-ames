@@ -23,6 +23,11 @@
 #' test set to produce a submission file consisting of the observation id and the predicted sale price.  Kaggle evaluates 
 #' submissions on the root-mean-squared-error (RMSE) between the log of the predicted sales price and the log of the 
 #' observed sales price.
+#' 
+#' This document addresses initial data management: data cleaning and imputation.
+#' 
+#' 
+#' # Setup
 
 #+ echo = FALSE
 #+ setup, message = FALSE, warning = FALSE
@@ -49,7 +54,10 @@ d <- d %>% select(Set, Id, SalePrice, sort(names(d))) %>% data.frame()
 
 #' Define the ordinal factor variable levels from the 
 #' [codebook](https://www.kaggle.com/c/house-prices-advanced-regression-techniques/download/data_description.txt).
-#' I count 19 ordinal variables, not 23 as indicated by De Cock.
+#' I count 19 ordinal variables, not 23 as indicated by De Cock.  
+#' `OverallQual` and `OverallCond` could be ordinal or numeric.  With 
+#' experimentation, it appears they perform slightly better as numeric, so I
+#' removed them from this list.
 OF.levels <- list(
   BsmtCond = c('NA', 'Po', 'Fa', 'TA', 'Gd', 'Ex'),
   BsmtExposure = c('NA', 'No', 'Mn', 'Av', 'Gd'),
@@ -67,8 +75,6 @@ OF.levels <- list(
   GarageQual = c('NA', 'Po', 'Fa', 'TA', 'Gd', 'Ex'),
   HeatingQC = c('Po', 'Fa', 'TA', 'Gd', 'Ex'),
   KitchenQual = c('Po', 'Fa', 'TA', 'Gd', 'Ex'),
-  OverallQual = 1:10,
-  OverallCond = 1:10,
   PoolQC = c('NA', 'Po', 'Fa', 'TA', 'Gd', 'Ex')
 )
 
@@ -230,8 +236,8 @@ d$Neighborhood <- parse_factor(d$Neighborhood, levels = UF.levels$Neighborhood)
 
 #'
 d$OpenPorchSF <- as.numeric(d$OpenPorchSF)
-d$OverallCond <- parse_factor(as.character(d$OverallCond), levels = OF.levels$OverallCond, ordered = T)
-d$OverallQual <- parse_factor(as.character(d$OverallQual), levels = OF.levels$OverallQual, ordered = T)
+#d$OverallCond <- parse_factor(as.character(d$OverallCond), levels = OF.levels$OverallCond, ordered = T)
+#d$OverallQual <- parse_factor(as.character(d$OverallQual), levels = OF.levels$OverallQual, ordered = T)
 d$PavedDrive <- parse_factor(d$PavedDrive, levels = UF.levels$PavedDrive)
 d$PoolArea <- as.numeric(d$PoolArea)
 d$PoolQC <- parse_factor(d$PoolQC, levels = OF.levels$PoolQC, ordered = T) %>% fct_explicit_na("NP")
@@ -297,6 +303,7 @@ d$Cond <- factor(case_when(d$Condition1 %in% c('RRNn', 'RRAn', 'RRNe', 'RRAe', '
                            TRUE ~ 0),
                  ordered = TRUE)
 
+#+ warning = FALSE
 p1 <- d %>% ggplot(aes(x = CondRoad, y = SalePrice)) + 
   geom_jitter(aes(color = CondRoad), width = 0.2) +
   geom_boxplot(aes(fill = CondRoad), alpha = 0.5, outlier.shape = NA) + 
@@ -411,7 +418,7 @@ xyplot(imp, LotFrontage ~ LotArea, col=mdc(1:2), pch=20, cex=1.5)
 xyplot(imp, MasVnrArea ~ GrLivArea, col=mdc(1:2), pch=20, cex=1.5)
 
 #' Complete the data set with missing values replaced by imputations.
-d <- complete(imp)
+#d <- complete(imp)
 
 #' Am I done?  Yes, only `SalePrice` from the test dataset remains.
 #' 

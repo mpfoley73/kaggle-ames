@@ -114,7 +114,7 @@ p <- map(colnames(d[,col_is_num]),
                  plot.title = element_text(size = 10)))
 exec(grid.arrange, ncol = 4, !!!p)
 
-#' Almost all the distributions seem reasonable.  Only six of the 32 numeric variables 
+#' Almost all the distributions seem reasonable.  Only six of the 34 numeric variables 
 #' are not skewed.  I'll want to transform these to help create linear relationships
 #' with the response variable.  `YearRemodAdd` seems odd though - why the spike in
 #' remodels at the earliest year?
