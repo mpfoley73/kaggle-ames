@@ -68,9 +68,9 @@ assertthat::are_equal(
                     freqCut = 99/5, uniqueCut = 10))
 nzv_colnames <- rownames(nzv[nzv$nzv == TRUE,])
 
-#' There are `r nrow(nzv[nzv$nzv == TRUE,])` factor variables with near-zero variance.  
-#' Here are distribution bar plots of the ordinal factor variables.  The five NZVs are 
-#' colored gold.
+#' There are `r nrow(nzv[nzv$nzv == TRUE,])` factor variables with near-zero 
+#' variance. Here are distribution bar plots of the ordinal factor 
+#' variables. The NZVs are colored gold.
 
 #+ fig.height = 16
 p <- map(colnames(d[,col_is_ord]),
@@ -81,7 +81,7 @@ p <- map(colnames(d[,col_is_ord]),
                  plot.title = element_text(size = 10)))
 exec(grid.arrange, ncol = 4, !!!p)
 
-#' And here are the distribution bar plots of the nominal factor variables.  The ten 
+#' And here are the distribution bar plots of the nominal factor variables.  The
 #' NZVs are colored gold.
 
 #+ fig.height = 16

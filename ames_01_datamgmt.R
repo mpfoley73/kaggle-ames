@@ -418,7 +418,7 @@ xyplot(imp, LotFrontage ~ LotArea, col=mdc(1:2), pch=20, cex=1.5)
 xyplot(imp, MasVnrArea ~ GrLivArea, col=mdc(1:2), pch=20, cex=1.5)
 
 #' Complete the data set with missing values replaced by imputations.
-#d <- complete(imp)
+d <- complete(imp)
 
 #' Am I done?  Yes, only `SalePrice` from the test dataset remains.
 #' 
